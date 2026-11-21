@@ -18,37 +18,44 @@ This project builds that visibility from scratch.
 
 ## Key results
 
-Metric & Result 
-
-Total financial exposure identified : €3.16M
-Share of exposure from excess stock (vs. stockout) : 99.9% 
-Outlier detection accuracy (Isolation Forest) : F1 = 83.4% 
-Best baseline forecast error (MAPE) : 12.1%
-SKUs where Holt-Winters outperforms despite worst average MAPE : 9 out of 16
-Bullwhip ratio (forecast vs. demand variance) : 0.94 avg, directionally confirmed on flagged SKUs
+| Metric | Result |
+|---|---|
+| Total financial exposure identified | €3.16M |
+| Share of exposure from excess stock (vs. stockout) | 99.9% |
+| Outlier detection accuracy (Isolation Forest) | F1 = 83.4% |
+| Best baseline forecast error (MAPE) | 12.1% |
+| SKUs where Holt-Winters wins despite the worst average MAPE | 9 out of 16 |
+| Bullwhip ratio (forecast vs. demand variance) | 0.94 on average, directionally confirmed on the SKUs flagged for bullwhip |
 
 Headline insight: no single forecasting model wins across the portfolio, the model with the worst average error is still the single most frequent per-SKU winner. This is the core argument for a best-fit, per-SKU model selection strategy, rather than a one-size-fits-all approach. That is reflected directly in the PowerBI dashboard.
+
+
+## Recommended actions
+
+What I would bring to the S&OP meeting, based on the analysis:
+
+1. **Switch to per-SKU model selection.** No single model wins: Holt-Winters has the worst average MAPE yet wins on 9 of the 16 high-risk SKUs. Decision: assign each SKU its best-fit model instead of one portfolio standard. On the high-risk SKUs, this takes the average MAPE from about 22% to about 11%.
+
+2. **Attack excess stock first, starting with the top 10 SKUs.** 99.9% of the €3.16M exposure is excess stock, not stockouts, and the top 10 SKUs carry a large share of it. Decision: review safety stock and order quantities on those SKUs first, where each correction frees the most cash.
+
+3. **Clean the history before forecasting, but keep real events.** Isolation Forest separates data noise from real business spikes (F1 = 83.4%). Decision: remove the noise outliers from the forecasting history, and keep the business outliers flagged so demand planners review them instead of the model ignoring them.
+
+4. **Treat the bullwhip SKUs separately.** On the SKUs flagged for bullwhip, forecast variability amplifies demand and lines up with higher financial exposure. Decision: smooth their forecast adjustments and share actual demand data upstream, rather than reacting order by order.
 
 
 ## Project structure
 
 The project is organized as 7 sequential modules, each a standalone notebook building on the SQLite database populated by the previous ones.
 
-Module | Notebook | What it does 
-
-M1 - '01_data_generation.ipynb': Generates 50 SKUs × 3 markets × 152 weeks of synthetic demand, with configurable bias, seasonality, and bullwhip flags baked in as ground truth
-
-M2 - '02_forecast_error_analysis.ipynb': Computes MAPE/bias per SKU, risk-scores the portfolio, quantifies excess stock exposure
-
-M3 - '03_outlier_detection.ipynb': Isolation Forest model to separate data noise from real business spikes (F1 = 83.4%)
-
-M4 - '04_forecast_models.ipynb' : Benchmarks Baseline (moving average), Holt-Winters, and XGBoost on HIGH-risk SKUs
-
-M5 - '05_bullwhip_effect_quantification.ipynb': Quantifies demand amplification via variance ratio; includes a multi-period robustness check that was tested, found statistically unreliable, and documented as a methodology limitation rather than silently discarded
-
-M6 - '06_financial_impact.ipynb': Consolidates M2–M5 into a single financial exposure view, by SKU and by product family
-
-M7 - Power BI dashboard: 4-view interactive dashboard connecting all of the above
+| Module | Notebook | What it does |
+|---|---|---|
+| M1 | `01_data_generation.ipynb` | Generates 50 SKUs × 3 markets × 152 weeks of synthetic demand, with configurable bias, seasonality, and bullwhip flags baked in as ground truth |
+| M2 | `02_forecast_error_analysis.ipynb` | Computes MAPE/bias per SKU, risk-scores the portfolio, quantifies excess stock exposure |
+| M3 | `03_outlier_detection.ipynb` | Isolation Forest model to separate data noise from real business spikes (F1 = 83.4%) |
+| M4 | `04_forecast_models.ipynb` | Benchmarks Baseline (moving average), Holt-Winters, and XGBoost on HIGH-risk SKUs |
+| M5 | `05_bullwhip_effect_quantification.ipynb` | Quantifies demand amplification via variance ratio; includes a multi-period robustness check that was tested, found statistically unreliable, and documented as a methodology limitation rather than silently discarded |
+| M6 | `06_financial_impact.ipynb` | Consolidates M2 to M5 into a single financial exposure view, by SKU and by product family |
+| M7 | Power BI dashboard | 4-view interactive dashboard connecting all of the above |
 
 Each notebook writes its outputs to a shared SQLite database (`data/medcore.db`), so downstream modules always work from the latest validated results rather than recomputing from scratch.
 
@@ -90,22 +97,36 @@ Built in Power BI.
 
 ## Repository structure
 
+```
 pharma-demand-planning/
-
-├── data/                   # SQLite database
-
-├── notebooks/              # M1–M6 notebooks
-
+├── data/                   # SQLite database (medcore.db)
+├── notebooks/              # M1 to M6 notebooks
 ├── outputs/                # Exported charts + CSVs for Power BI
-
 │   └── powerbi/            # CSV exports feeding the dashboard
-
-├── powerbi/                # .pbix file
-
+├── powerbi/                # .pbix file and dashboard screenshots
+├── requirements.txt
 └── README.md
+```
+
+
+## How to run it
+
+**Open the dashboard:** download `powerbi/MedCore_Pharma_Dashboard.pbix` and open it with Power BI Desktop (free, Windows).
+
+**Run the analysis (Python 3.13):**
+
+```bash
+pip install -r requirements.txt
+jupyter notebook
+```
+
+Then run the notebooks in order, from `01_data_generation.ipynb` to `06_financial_impact.ipynb`. Each one reads from and writes to `data/medcore.db`, so the order matters.
+
 
 ## About
 
 Built by Aboubacar Diaby - S&OP Manager & Supply Chain Specialist.
+
+[LinkedIn](https://www.linkedin.com/in/aboubacar-diaby-3b3a1b180/)
 
 [LinkedIn](https://www.linkedin.com/in/aboubacar-diaby-3b3a1b180/)
